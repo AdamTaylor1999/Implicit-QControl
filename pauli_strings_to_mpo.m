@@ -1,4 +1,4 @@
-function operator_strings = pauli_strings_to_mpo(pauli_strings, n)
+function operator_strings = pauli_strings_to_mpo(n, pauli_strings)
 %   Converts a list of Pauli strings into a list of MPOs.
 %   Takes a cell array of Pauli strings (e.g., {'XIYIZ','ZZIII'}) and
 %   the number of sites n, and returns a cell array of MPOs.

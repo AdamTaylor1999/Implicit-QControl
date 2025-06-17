@@ -54,6 +54,7 @@ mpo0=mpo_normalize(mpo0);
 %check energy
 mps1=mpo_mps(mpo0,mps0);
 erg0_mpo=mps_overlap(mps1,mps0)*sqrt(norm0);
+
 %Adiabatic evolution
 fprintf('adiabatic evolution\n');
 %define hamiltonian terms H(t)=c2q(t)H2q+c(t)Hc
@@ -93,6 +94,7 @@ fprintf('system size #%d\n',n);
 fprintf('energy per site of control target %d\n',erg/n);
 fprintf('fidelity bound for ground state of control target %d\n',Fbound);
 mpo_adb_target=mpo;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %optimization
 fprintf('optimization\n');
