@@ -79,6 +79,7 @@ for j=1:n-1
         g2bw{j}=gate;
 end
 
+
 for k=1:nbin
     %single qubit gate construction
     g1=cell(1,n);

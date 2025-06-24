@@ -9,7 +9,11 @@ dB0=size(B0,4);
 %apply gate
 Ttemp=tensorprod(A0,B0,4,1,NumDimensionsA=4);
 tno=permute(tno,[2,4,1,3]);
+
+
 T=tensorprod(Ttemp,tno,[2,4],[2,4],NumDimensionsA=6);
+
+
 T=permute(T,[1,5,2,6,3,4]);
 nshape=[d*d*dA0,d*d*dB0];
 T=reshape(T,nshape);

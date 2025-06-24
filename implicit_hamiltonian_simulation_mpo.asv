@@ -90,12 +90,10 @@ tebd_options_mps.bond_comp = 100;
 
 %define control Hamiltonian; H(t) = \sum_j fj Xj + cj ZjZj+1
 
-%MAKING UNIVERSAL CONTROL {X, Z, ZZ} --> still 10% infidelity?
-%also SOMETIMES (33%) gives an error on mpo_overlap (Specified dims of the
-%input arrays must have the same size) from infid_2q gradient calculation
+%MAKING UNIVERSAL CONTROL {
 ctrl_num = 3 * n - 1;
 %2 qubit terms
-H2q = cell(1, n - 1); %different structure for some reason? ba sed on example
+H2q = cell(1, n - 1); %different structure for some reason? based on example
 for j = 1:n - 1
     H2q{j} = kron(sz, sz);
 end
@@ -105,11 +103,7 @@ H1q = struct('sys', cell(n, 1), 'op', cell(n, 1));
 for j = 1:n
     H1q(j).sys = j;
     H1q(j).op = {sx};
-    H1q(n + j).sys = j;
-    H1q(n + j).op = {sz};
 end
-
-ctrl_num = length(H1q) + (n - 1);
 
 %sets course-ness of control operations and timescale. Scales as a function
 %of qubit number (WHY?)

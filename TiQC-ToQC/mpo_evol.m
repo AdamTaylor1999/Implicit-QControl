@@ -1,4 +1,6 @@
 function [mpo,Dlist]=mpo_evol(H0,Hc,c0,c,T,mpo0,tebd_options)
+%does this allow time evolving 2 qubit interactions?
+
 sv_min=tebd_options.sv_min;
 D=tebd_options.bond_dim;
 Dc=tebd_options.bond_comp;
