@@ -34,7 +34,7 @@ n = 4;
 
 %initial invariants: initially just considering single Pauli strings, not
 %sums or combinations
-I0_strings = [all_single_operator_strings(n, 'X'), local_2body_strings(n, 'ZZ')];
+I0_strings = [all_single_operator_strings(n, 'YY'), local_2body_strings(n, 'ZZ')];
 m = length(I0_strings);
 I0_mpos = pauli_strings_to_mpo(n, I0_strings);
 for j = 1:m
@@ -47,7 +47,7 @@ end
 
 H2q_heis = cell(n - 1, 1);
 for j = 1:n - 1
-    H2q_heis{j, 1} = kron(sx, sx) + kron(sy, sy) + kron(sz, sz);
+    H2q_heis{j, 1} = kron(sy, sy) + kron(sz, sz);
 end
 
 %time evolution parameters
@@ -90,21 +90,26 @@ tebd_options_mps.bond_comp = 100;
 
 %define control Hamiltonian; H(t) = \sum_j fj Xj + cj ZjZj+1
 
-%MAKING UNIVERSAL CONTROL {
+%MAKING UNIVERSAL CONTROL {X, Z, ZZ} --> still 10% infidelity?
+%also SOMETIMES (33%) gives an error on mpo_overlap (Specified dims of the
+%input arrays must have the same size) from infid_2q gradient calculation
 ctrl_num = 3 * n - 1;
 %2 qubit terms
 H2q = cell(1, n - 1); %different structure for some reason? based on example
 for j = 1:n - 1
     H2q{j} = kron(sz, sz);
 end
-
-%1 qubit terms, controllable. Now include X and Y
+%1 qubit terms, controllable. Now include X and Z (universal?)
 H1q = struct('sys', cell(n, 1), 'op', cell(n, 1));
 for j = 1:n
     H1q(j).sys = j;
     H1q(j).op = {sx};
+    %H1q(n + j).sys = j;
+    %H1q(n + j).op = {sy};
 end
+ctrl_num = length(H1q) + (n - 1);
 
+disp(H1q)
 %sets course-ness of control operations and timescale. Scales as a function
 %of qubit number (WHY?)
 bin_factor = 10;
@@ -118,9 +123,8 @@ varT = 0; %allows for optimisation of control evolution length.
 
 %this part will need fixing in the mean time, we just look at a single
 %invariant to test the basic optimisation
-mpo0 = I0_mpos{1};
-mpoT = IT_mpos{1};
-fun = @(x) infid_2q(H2q, H1q, x, mpo0, mpoT, varT, tebd_options);
+
+fun = @(x) infid_2q_propagator(H2q, H1q, x, I0_mpos, IT_mpos, varT, tebd_options);
 
 %optimisation options
 iF_target = 1e-3;
@@ -145,7 +149,8 @@ iFL = zeros(Ntry, 1);
 
 parfor jtry = 1:Ntry
     c0 = rand() * (rand(bin_num, ctrl_num) - 1/2)
-    x0 = [c0(:); T0 * rand()];
+    x0 = [c0(:); T0]; %T0 NOT BEING OPTIMISED, SET TO T0 FOR NOW
+    disp(length(x0))
     iF0 = fun(x0)
     x_optm = fmincon(fun, x0, A, b, Aeq, beq, lb, ub, nonlcon, options);
     xL{jtry} = x_optm;

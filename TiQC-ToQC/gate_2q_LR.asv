@@ -6,11 +6,7 @@ function [A,B]=gate_2q_LR(A0,B0,tno,sv_min,D) %apply the tensor network operator
 size_temp=size(A0);
 d=size_temp(2);
 dA0=size(A0,1);
-dB0=size(B0,4);%ISSUE IS ACTUALLY HERE TAKES THE FOURTH DIMENSION, BUT WE ONLY HAVE 3 FOR SOME REASON. APPLY DUMMY APPENDIX????
-
-%i really don't know how to fix this / what the issue really is atm
-
-
+dB0=size(B0,4);
 tno2=reshape(tno,[d^2,d^2]);
 tno2=tno2';
 tno2=reshape(tno2,[d,d,d,d]);

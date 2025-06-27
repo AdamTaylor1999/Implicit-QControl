@@ -41,9 +41,9 @@ c = c1; %kept c1 as c for ease of implementation - will improve later
 %nbin=length(c)/(nc); %no but we need to calculate nbin properly
 
 
-d=size(mpo0{1},2);%local dimension???? bond dimension????
-dt=T/(nbin*nt);
-Dt=T/nbin;
+d=size(mpo0{1},2);%local dimension
+dt=T/(nbin*nt); %fine grain time step of TEBD simulation
+Dt=T/nbin;%course grained time step at which the control Hamiltonians change
 
 %half time evolution is for second order TEBD (iso = is_second_order).
 %TEBD_default_settings set iso = 0 so not important for now. Will want to
@@ -141,7 +141,10 @@ for k=1:nbin
     end 
     %forward propagation
    mpofw(k+1,:)=mpofw(k,:);
-    for jt=1:nt 
+   disp(size(mpofw(k+1, :)))
+    for jt=1:nt %wtf does jt do, except lead to multiple repeats of this?
+        %this is necessary to implement the FINE TUNED ness of it
+      %why is this applied differently in the forwards and backwards cases?
      %apply odd 2q terms
     for j=1:2:n-1
         [mpofw{k+1,j},mpofw{k+1,j+1}]=gate_2q_LR(mpofw{k+1,j},mpofw{k+1,j+1},g2{j},sv_min,D);
@@ -155,6 +158,9 @@ for k=1:nbin
         [mpofw{k+1,j}]=gate_1q_LR(mpofw{k+1,j},g1{j});
     end
     end
+
+
+    %UP TO HERE!!!!!!
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %backward propagation
 %construct gates
@@ -185,6 +191,9 @@ g1=cell(1,n);
     for j=1:n
         [mpobw{k+1,j}]=gate_1q_LR(mpobw{k+1,j},g1{j});
     end
+
+    %%%%%%%%%%%%%%%%%%%%%% UP TO HERE -- > WHY DO WE DO JT = 1:NT, DOESN'T
+    %%%%%%%%%%%%%%%%%%%%%% APPEAR ANYWHERE!!!!!
     for jt=1:nt
     %apply even 2q terms
     for j=2:2:n-1
@@ -230,7 +239,7 @@ for k=1:nbin
         
 
 
-        [tnsfw_diff_left{jc2}, ~] = gate_2q(tnsfw_diff_left{jc2}, tnsfw_diff_left{jc2+1}, gate, sv_min, D);
+        [tnsfw_diff_left{jc2}, tnsfw_diff_left{jc2 + 1}] = gate_2q(tnsfw_diff_left{jc2}, tnsfw_diff_left{jc2+1}, gate, sv_min, D);
  
         %tnsfw_diff_left{jc2+1} = []; %mark j+1 as merged (mr chatGPT suggestion)
         %disp(tnsfw_diff_left)
