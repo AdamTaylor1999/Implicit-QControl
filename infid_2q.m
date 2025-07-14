@@ -141,11 +141,9 @@ for k=1:nbin
     end 
     %forward propagation
    mpofw(k+1,:)=mpofw(k,:);
-   disp(size(mpofw(k+1, :)))
-    for jt=1:nt %wtf does jt do, except lead to multiple repeats of this?
-        %this is necessary to implement the FINE TUNED ness of it
-      %why is this applied differently in the forwards and backwards cases?
-     %apply odd 2q terms
+  
+    for jt=1:nt
+    
     for j=1:2:n-1
         [mpofw{k+1,j},mpofw{k+1,j+1}]=gate_2q_LR(mpofw{k+1,j},mpofw{k+1,j+1},g2{j},sv_min,D);
     end
@@ -204,7 +202,7 @@ g1=cell(1,n);
         [mpobw{k+1,j},mpobw{k+1,j+1}]=gate_2q_LR(mpobw{k+1,j},mpobw{k+1,j+1},g2bw{j},sv_min,D);
     end
     end
-    %normalisation
+    %compression (if appliable) and normalisation
 if mod(k-1,midstep)==0||k==nbin
     if iscpr==1
      mpofw(k+1,:)=mpo_compress(mpofw(k+1,:),sv_min,Dc,nsweep);
@@ -214,6 +212,7 @@ mpofw(k+1,:)=mpo_normalize(mpofw(k+1,:));
 mpobw(k+1,:)=mpo_normalize(mpobw(k+1,:));
 end
 end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %gradient
 for k=1:nbin
@@ -242,8 +241,8 @@ for k=1:nbin
         [tnsfw_diff_left{jc2}, tnsfw_diff_left{jc2 + 1}] = gate_2q(tnsfw_diff_left{jc2}, tnsfw_diff_left{jc2+1}, gate, sv_min, D);
  
         %tnsfw_diff_left{jc2+1} = []; %mark j+1 as merged (mr chatGPT suggestion)
-        %disp(tnsfw_diff_left)
-        %disp(tnsfw_temp)
+        
+       
         
         ovl_diff_left = mpo_overlap(tnsbw_temp, tnsfw_diff_left);
         

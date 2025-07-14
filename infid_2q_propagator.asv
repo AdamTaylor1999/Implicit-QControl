@@ -11,7 +11,8 @@ function [iF, iG] = infid_2q_propagator(H2q, H1q, x, mpo0, mpotg, varT, tebd_opt
 sv_min = tebd_options.sv_min;
 D = tebd_options.bond_dim;
 Dc = tebd_options.bond_comp;
-nsweep = tebd_options.num_midstep;
+nsweep = tebd_options.num_sweep;
+midstep = tebd_options.num_midstep;
 nt = tebd_options.num_refined_step;
 iscpr = tebd_options.is_compressed;
 iso = tebd_options.is_second_order;
@@ -49,13 +50,13 @@ mpobw = cell(Nc, nbin + 1, n);
 iG = zeros(nbin, nc1 + nc2);
 
 for j = 1:Nc
-    mpofw(j, 1, :) = mpo0(j);
-    mpobw(j, 1, :) = mpotg(j);
+    mpofw(j, 1, :) = mpo0{j};%careful with difference between { } and ( )
+    mpobw(j, 1, :) = mpotg{j};
 end
 
 
 for k = 1:nbin %gate construction at _control_ bin step
-    %defining the forward and backwards gates
+    %defining the forward gates
     %2 qubit forwards gate
     g2 = cell(1, n - 1);
     for j = 1:(n - 1)
@@ -78,122 +79,122 @@ for k = 1:nbin %gate construction at _control_ bin step
         gate = expm(-1i * dt * h);
         g1{j} = gate;
     end
-
+    %implementing the forward time evolution
     for inv = 1:Nc %chooses invariant
         %forward propagation
-        mpofw(inv, k + 1, :) = mpofw(inv, k, :); %HAVE RESIDUAL SINGLETON DIMENSION HERE WHICH BREAKS THE GATE_2Q_LR AS UNEXPECTED DIMENSION SIZES
-        disp(size(mpofw))
-        disp(size(mpofw(inv, :, :)))
-        disp(size(mpofw(inv, 2, :)))
-        disp(size(mpofw(inv, 2, 1)))
-        %problem; size(mpofw(inv, k + 1, j)) = 1 1 4 != 1 4 
-        %leads to issues wiht 
-        
-        
-        
-        mpofw_temp = squeeze(mpofw(inv, :, :));
-        
-       
-        
-        for jt = 1:nt
+        mpofw(inv, k + 1, :) = mpofw(inv, k, :);
+        mpofw_temp = squeeze(mpofw(inv, :, :));%create temporary MPO with correct dimensions (no null dimension on inv variable)
+        for jt = 1:nt %fine-grained time steps
             %apply odd 2q terms
             for j = 1:2:n - 1
-                
-                [mpofw{inv, k + 1, j}, mpofw{inv, k + 1, j + 1}] = ...
+                [mpofw_temp{k + 1, j}, mpofw_temp{k + 1, j + 1}] = ...
                     gate_2q_LR(mpofw_temp{k + 1, j}, mpofw_temp{k + 1, j + 1}, g2{j}, sv_min, D);
             end
             %apply even 2q terms
             for j = 2:2:n - 1
-                [mpofw{inv, k + 1, j}, mpofw{inv, k + 1, j + 1}] = ...
-                    gate_2q_LR(mpofw{inv, k + 1, j}, mpofw{inv, k + 1, j + 1}, g2{j}, sv_min, D);
+                [mpofw_temp{k + 1, j}, mpofw_temp{k + 1, j + 1}] = ...
+                    gate_2q_LR(mpofw_temp{k + 1, j}, mpofw_temp{k + 1, j + 1}, g2{j}, sv_min, D);
             end
             %apply 1q terms
             for j = 1:n
-                [mpofw{inv, k + 1, j}] = gate_1q_LR(mpofw{inv, k + 1, j}, g1{j});
+                [mpofw_temp{k + 1, j}] = gate_1q_LR(mpofw_temp{k + 1, j}, g1{j});
             end
         end
-        %end of forwards propagation
+
+        %compression (if applicable) and normalisation
+        if mod(k - 1, midstep) == 0 || k == nbin %not sure about this condition
+            if iscpr == 1
+                mpofw_temp(k + 1, :) = mpo_compress(mpofw_temp(k + 1, :), sv_min, Dc, nsweep);
+            end
+            mpofw_temp(k + 1, :) = mpo_normalize(mpofw_temp(k + 1, :));
+        end
+        %update mpofw for each invariant
+        mpofw(inv, k + 1, :) = {mpofw_temp{k + 1, :}};
+    end    
+    %end of forwards propagation
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %2 qubit backwards gate
-        g2 = cell(1, n - 1); %used to save as g2bw, now dropped bw to overwrite g2 for space. hopefully this works
-        for j = 1:n - 1      %the analogous thing was done for the 1q gates.
-            h = c2(nbin - k + 1, j) * H2q{j};
-            gate = expm(1i * dt * h);
-            gate = reshape(gate, [d,d,d,d]);
-            g2bw{j} = gate;
-        end
-        %1 qubit backwards gate
-        g1 = cell(1, n);
-        for j = 1:n
-            h = zeros(d);
-            for jc = 1:nc1
-                for js = 1:length(H1q(jc).sys)
-                    if H1q(jc).sys(js) == j
-                        h = h + c1(nbin - k + 1, jc) * H1q(jc).op{js};
-                    end
+    %defining backwards gates
+    %2 qubit backwards gate
+    g2 = cell(1, n - 1); %used to save as g2bw, now dropped bw to overwrite g2 for space. hopefully this works
+    for j = 1:n - 1      %the analogous thing was done for the 1q gates.
+        h = c2(nbin - k + 1, j) * H2q{j};
+        gate = expm(1i * dt * h);
+        gate = reshape(gate, [d,d,d,d]);
+        g2{j} = gate;
+    end
+    %1 qubit backwards gate
+    g1 = cell(1, n);
+    for j = 1:n
+        h = zeros(d);
+        for jc = 1:nc1
+            for js = 1:length(H1q(jc).sys)
+                if H1q(jc).sys(js) == j
+                    h = h + c1(nbin - k + 1, jc) * H1q(jc).op{js};
                 end
             end
-            gate = expm(1i * dt * h);
-            g1{j} = gate;
         end
-        
+        gate = expm(1i * dt * h);
+        g1{j} = gate;
+    end
+    %implementing backwards time evolution
+    for inv = 1:Nc
+        %backwards propagation on temporary MPO
         mpobw(inv, k + 1, :) = mpobw(inv, k, :);
-        %backwards propagation
-        
-        %For some reason with different nt dependence
-        %CHANGED TO BE LIKE FORWARD PROPAGATION?!?! DOES THIS WORK!?!
-        %this seeeeems to imply that either I've misunderstood something,
-        %or the existing function is wrong?????
-        for jt = 1:nt
+        mpobw_temp = squeeze(mpobw(inv, :, :));
+        for jt = 1:nt %fine-grained time steps
             %apply 1 qubit terms
             for j = 1:n
-                [mpobw{inv, k + 1, j}] = gate_1q_LR(mpobw{inv, k + 1, j}, g1{j});
+                [mpobw_temp{k + 1, j}] = gate_1q_LR(mpobw_temp{k + 1, j}, g1{j});
             end
             %apply even 2 qubit terms
             for j = 2:2:n - 1
-                [mpobw{inv, k + 1, j}, mpobw{inv, k + 1, j + 1}] = ...
-                    gate_2q_LR(mpobw{inv, k + 1, j}, mpobw{inv, k + 1, j + 1}, gw{j}, sv_min, D);
+                [mpobw_temp{k + 1, j}, mpobw_temp{k + 1, j + 1}] = ...
+                    gate_2q_LR(mpobw_temp{k + 1, j}, mpobw_temp{k + 1, j + 1}, g2{j}, sv_min, D);
             end
             %apply odd 2 qubit terms
             for j = 1:2:n - 1
-                [mpobw{inv, k + 1, j}, mpobw{inv, k + 1, j + 1}] = ...
-                    gate_2q_LR(mpobw{inv, k + 1, j}, mpobw{inv, k + 1, j + 1}, gw{j}, sv_min, D);
+                [mpobw_temp{k + 1, j}, mpobw_temp{k + 1, j + 1}] = ...
+                    gate_2q_LR(mpobw_temp{k + 1, j}, mpobw_temp{k + 1, j + 1}, g2{j}, sv_min, D);
             end
         end
+        %compression (if applicable) and normalisation
         if mod(k - 1, midstep) == 0 || k == nbin
             if iscpr == 1
-                mpofw(inv, k + 1, :) = mpo_compress(mpofw(inv, k + 1, :), sv_min, Dc, nsweep);
-                mpobw(inv, k + 1, :) = mpo_compress(mpobw(inv, k + 1, :), sv_min, Dc, nsweep);
+                mpobw_temp(k + 1, :) = mpo_compress(mpobw_temp(k + 1, :), sv_min, Dc, nsweep);
             end
-            mpofw(inv, k + 1, :) = mpo_normalize(mpofw(inv, k + 1, :));
-            mpobw(inv, k + 1, :) = mpo_normalize(mpobw(inv, k + 1, :));
+            mpobw_temp(k + 1, :) = mpo_normalize(mpobw_temp(k + 1, :));
         end
+        %update mpobw for each invariant
+        mpobw(inv, k + 1, :) = {mpobw_temp{k + 1, :}};
     end
 end
-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %finding the gradient
 for inv = 1:Nc
     for k = 1:nbin
-        tnsfw_temp = mpofw(inv, k + 1, :);
-        tnsbw_temp = mpobw(inv, nbin - k + 1, :);
+        tnsfw_temp = squeeze(mpofw(inv, :, :));
+        tnsfw_temp = tnsfw_temp(k + 1, :);
+        tnsbw_temp = squeeze(mpobw(inv, :, :));
+        tnsbw_temp = tnsbw_temp(nbin - k + 1, :);
+       
         
-        %1 qubit control perturbation
-        for jc = 1:nc1
-            ovl_diff_left = 0
-            for js = 1:length(H1q(jc).sys)
-                jq = H1q(jc).sys(js);
-                gate = -1i * Dt * H1q(jc).op{js};
+        %1 qubit control perturbations
+        for jc1 = 1:nc1
+            ovl_diff_left = 0;
+            for js = 1:length(H1q(jc1).sys)
+                jq = H1q(jc1).sys(js);
+                gate = -1i * Dt * H1q(jc1).op{js};
                 tnsfw_diff_left = tnsfw_temp;
                 tnsfw_diff_left{jq} = gate_1q(tnsfw_diff_left{jq}, gate);
                 ovl_diff_left = ovl_diff_left + mpo_overlap(tnsbw_temp, tnsfw_diff_left);
             end
-            iG(k, jc) = iG(k, jc) -2 * real(ovl_diff_left) / Nc; %adds all inv derivatives together for a given control Hamiltonian
+            %adds all inv derivatives together for a given control Hamiltonian
+            iG(k, jc1) = iG(k, jc1) -2 * real(ovl_diff_left) / Nc;
         end
-
+        %2 qubit control perturbations
         for jc2 = 1:nc2
             gate = -1i * Dt * H2q{jc2};
             gate = reshape(gate, [d,d,d,d]);
@@ -210,12 +211,13 @@ for inv = 1:Nc
     end
 end
 
-iGT = 0; %not yet set up for optimising time scale evolution
+%not set up for optimising time scale yet
+iGT = 0;
 iG = [iG(:); iGT];
 
 ovl = 0;
 for inv = 1:Nc
-    ovl = ovl + real(mpo_overlap(mpotg{inv}, mpofw{inv, nbin + 1, :}));
+    ovl = ovl + real(mpo_overlap(squeeze(mpofw(inv, nbin + 1, :)), mpotg{inv})) / Nc;
 end
 iF = 1 - ovl;
 
