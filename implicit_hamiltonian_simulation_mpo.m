@@ -4,12 +4,6 @@
 % In this code, we use quantum invariants to find quantum control
 % solutions for Hamiltonian simulation. 
 
-% In particular, we focus on trying to simulate Heisenberg dynamics
-% governed by
-% H_h = \sum_j XjXj+1 + YjYj+1 + ZjZj+1 
-% using a control Hamiltonian given in terms of Ising interactions
-% {Xj, ZkZk+1}.
-
 
 
 addpath("TiQC-ToQC/")
@@ -30,7 +24,7 @@ sv_min = tebd_options.sv_min;
 Dc = tebd_options.bond_comp;
 
 %no. of qubits
-n = 6;
+n = 4;
 
 %initial invariants: initially just considering single Pauli strings, not
 %sums or combinations
@@ -50,7 +44,7 @@ end
 
 H2q_heis = cell(n - 1, 1);
 for j = 1:n - 1
-    H2q_heis{j, 1} = kron(sx, sx) + kron(sy, sy) + kron(sz, sz);
+    H2q_heis{j, 1} = kron(sy, sy) + kron(sz, sz);
 end
 
 %time evolution parameters
@@ -103,15 +97,15 @@ for j = 1:n - 1
     H2q{j} = kron(sz, sz);
 end
 %1 qubit terms, controllable. Now include X and Y (universal)
-H1q = struct('sys', cell(n, 1), 'op', cell(n, 1));
+H1q = struct('sys', cell(n, 1), 'op', cell(n, 1));%SEEMS TO SPEND AGES OPTIMISING VERY VERY SLOWLY. MAYBE AN ISSUE WITH THE CODE? MAYBE AN ISSUE INHERENT ELSEWHERE (eg; universal so optimisation slow???)?
 for j = 1:n
     H1q(j).sys = j;
-    H1q(n + j).sys = j;
+    %H1q(n + j).sys = j;
     H1q(j).op = {sx};
-    H1q(n + j).op = {sy};
+    %H1q(n + j).op = {sy};
     %H1q(n + j).sys = j; %BEWARE - THIS SEEMINGLY INTRODUCES ERRORS. WORK
     %OUT WHY!!!!!!
-    %H1q(n + j).op = {sy};
+    %H1q(n + j).op = {sy}; -- seemingly gone?
 end
 ctrl_num = length(H1q) + (n - 1);
 
@@ -122,7 +116,7 @@ ctrl_num = length(H1q) + (n - 1);
 %of qubit number (WHY?)
 bin_factor = 10;
 bin_num = n * bin_factor;
-duration_factor = pi;
+duration_factor = 4 * pi;
 T0 = n * duration_factor;
 varT = 0; %allows for optimisation of control evolution length.
 % Set to zero while we test optimising with two qubit controls (infid_2q)
@@ -147,7 +141,7 @@ ub = [];
 options = optimoptions('fmincon', 'SpecifyObjectiveGradient', true,'HessianApproximation','lbfgs','Display','iter');
 options.StepTolerance = 1e-6;
 options.ConstraintTolerance = 1e-8;
-options.MaxFunctionEvaluations = 25;
+options.MaxFunctionEvaluations = 50;
 options.ObjectiveLimit = iF_target;
 
 nonlcon = [];
@@ -168,7 +162,7 @@ end
 x_optm = xL{jmin};
 
 %choose most promising initial state and use this to optimise
-options.MaxFunctionEvaluations = 500;
+options.MaxFunctionEvaluations = 1000;
 options.ObjectiveLimit = iF_target;
 
 x_optm = fmincon(fun, x_optm, A, b, Aeq, beq, lb, ub, nonlcon, options);
