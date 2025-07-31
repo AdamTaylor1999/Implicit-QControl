@@ -209,7 +209,7 @@ for k = 1:nbin %gate construction at _control_ bin step
                 ovl_diff_left = ovl_diff_left + mpo_overlap(tnsbw_temp, tnsfw_diff_left);
             end
             %adds all inv derivatives together for a given control Hamiltonian
-            iG(k, jc1) = iG(k, jc1) -2 * real(ovl_diff_left);
+            iG(k, jc1) = 2 * real(ovl_diff_left);
         end
         %2 qubit control perturbations
         for jc2 = 1:nc2
@@ -223,7 +223,7 @@ for k = 1:nbin %gate construction at _control_ bin step
 
             ovl_diff_left = mpo_overlap(tnsbw_temp, tnsfw_diff_left);
 
-            iG(k, nc1 + jc2) = iG(k, nc1 + jc2) - 2 * real(ovl_diff_left);
+            iG(k, nc1 + jc2) = 2 * real(ovl_diff_left);
         end
     end
 

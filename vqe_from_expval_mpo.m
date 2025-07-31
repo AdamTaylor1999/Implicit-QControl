@@ -23,7 +23,7 @@ tebd_options_mps = tebd_options;
 
 
 %no. of qubits
-n = 4;
+n = 8;
 
 %make sure H1q is correctly setup (in the following way for 2qubit control)
 H1q = struct('sys', cell(2 * n, 1), 'op', cell(2 * n, 1));
@@ -38,10 +38,9 @@ end
 %no 2 qubit control setup
 H2q = cell(1, n - 1);
 for j = 1:n - 1
-    H2q{j} = kron(sz, sz);
+    H2q{j} = -kron(sz, sz);
 end
 
-ctrl_num = length(H1q); %+ length(H2q) if using 2 qubit control
 
 %intial state = |00...0> <00...0|
 psi0 = computational_state_to_mpo(zeros(1, n));
@@ -73,17 +72,17 @@ times = linspace(0, T, time_steps);
 
 bin_factor = 5;
 bin_num = n * bin_factor;
-bin_num = 2;
+bin_num = 10;
 varT = 0; %when varT set to 1 (off), this no longer takes any steps!
 %idk why! FKKK
 
 %optimisation options (no constaints but need nloncon)
+expval_target = -Inf;
 options = optimoptions('fmincon', 'SpecifyObjectiveGradient', true, 'HessianApproximation','lbfgs','Display','iter');
 options.StepTolerance = 1e-8;
 options.ConstraintTolerance = 1e-8;
 options.MaxFunctionEvaluations = 50;
 options.ObjectiveLimit = expval_target;
-expval_target = -Inf;
 A = [];
 b = [];
 Aeq = [];
@@ -93,8 +92,7 @@ nonlcon = [];
 %function - choice of whether to use 2 qubit control or not
 %fun = @(x) expval_2q_vqe(H2q, H1q, x, observable_mpo, psi0, varT, tebd_options);
 fun = @(x) expval_vqe(H2q, H1q, x, observable_mpo, psi0, varT, tebd_options);
-
-
+ctrl_num = length(H1q); %+ length(H2q);% if using 2 qubit control
 
 %initial small test with random initial conditions 
 Ntry = 4;
