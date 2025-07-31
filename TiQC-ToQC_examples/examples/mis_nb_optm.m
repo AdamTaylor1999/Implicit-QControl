@@ -1,7 +1,7 @@
 %compare
-addpath('../TiQC/mpo_invariant/')
-addpath('../ToQC/mps/')
-diary mis_nb_optm
+addpath("TiQC-ToQC/")
+addpath("pauli_string_functions_module_matlab/")
+
 nw=4;
 maxNumCompThreads(nw);
 %parpool('local',nw)
@@ -108,6 +108,7 @@ for j =1:n-1
 end
 ctrl_num=2*n;
 %single-qubit terms
+
 Hc=struct('sys',cell(ctrl_num,1),'op',cell(ctrl_num,1));
 count=0;
 for kk=1:n
@@ -118,6 +119,9 @@ count=count+1;
 Hc(count).sys=[kk];
 Hc(count).op={sx};
 end
+
+
+
 bin_factor=10;
 duration_factor=pi;
 T0=n*duration_factor; 

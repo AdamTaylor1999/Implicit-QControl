@@ -1,4 +1,4 @@
-function [iF,iG]=infid(H0,Hc,x,mpo0,mpotg,varT,tebd_options)
+function [iF,iG]=expval(H0,Hc,x,mpo0,mpotg,varT,tebd_options)
 
 %What form must Hc take? Can it include two-qubit gates?
 %lternatively, can we define multiple H0's with multiple c0's? This is what
@@ -7,7 +7,9 @@ function [iF,iG]=infid(H0,Hc,x,mpo0,mpotg,varT,tebd_options)
 %calculates the infidelity and gradient 
 
 T=x(end);%total time
+
 c=x(1:end-1);%control coefficients
+
 sv_min=tebd_options.sv_min;
 D=tebd_options.bond_dim;
 Dc=tebd_options.bond_comp;
@@ -19,7 +21,7 @@ iso=tebd_options.is_second_order;
 n=length(mpo0);
 nc=length(Hc);
 nbin=length(c)/(nc);
-c=reshape(c,[nbin,nc]);%reshaped into individual 
+c = reshape(c, [nbin, nc]);%reshaped into individual 
 d=size(mpo0{1},2);
 dt=T/(nbin*nt);
 Dt=T/nbin;
@@ -78,7 +80,6 @@ for j=1:n-1
         gate=reshape(gate,[d,d,d,d]);
         g2bw{j}=gate;
 end
-
 
 for k=1:nbin
     %single qubit gate construction
@@ -166,11 +167,13 @@ for k=1:nbin
             tnsfw_diff_left{jq}=gate_1q(tnsfw_diff_left{jq},gate);
             ovl_diff_left=ovl_diff_left+mpo_overlap(tnsbw_temp,tnsfw_diff_left);
            end
-              iG(k,jc)=-2*real(ovl_diff_left);
+           %CHANGED GRADIENT SIGN
+              iG(k,jc)=2*real(ovl_diff_left);
     end
 end
 ovl=mpo_overlap(mpotg,mpofw(nbin+1,:));
-iF=1-real(ovl);
+%CHANGED iF = 1 - ovl --> ovl
+iF=real(ovl);
 iG=iG(:);
 if varT==1
 dt=10^(-10);    

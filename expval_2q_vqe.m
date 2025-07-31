@@ -1,4 +1,9 @@
-function [iF, iG] = infid_2q_propagator(H2q, H1q, x, mpo0, mpotg, varT, tebd_options)
+function [iF, iG] = expval_2q_vqe(H2q, H1q, x, psi0, mpo_obs, varT, tebd_options)
+
+mpo0 = psi0; %(wrong way around???)
+mpotg = mpo_obs;
+
+
 
 % mpo0 should be a set of initial invariants, mpotg should be a set of targets
 % x should be a set of coefficients [c11(t1), c11(t2), ... c11(tn), c12(t1), ...
@@ -34,8 +39,12 @@ end
 
 
 d = 2; %automatically set to qubits!
-Nc = length(mpo0); %number of initial/target invariants
-n = length(mpo0{1}); %number of qubits
+
+
+n = length(mpo0); %number of qubits
+
+
+
 nc1 = length(H1q); %number of single-qubit control terms
 nc2 = n - 1; %number of two-qubit control terms (always set to n-1)
 
@@ -47,7 +56,7 @@ c = x(1: end - 1);
 T = x(end);
 nbin = length(c) / (nc1 + nc2);
 
-c = reshape(c, [nbin, nc1 + nc2]);
+c = reshape(c, [nbin, nc1 + nc2]);%multiple H1q leads to error here?
 c1 = c(:, 1:nc1);
 c2 = c(:, (nc1 + 1):end);
 
@@ -56,15 +65,13 @@ dt = T / (nbin * nt);
 Dt = T / nbin;
 
 
-mpofw = cell(Nc, nbin + 1, n);
-mpobw = cell(Nc, nbin + 1, n);
+mpofw = cell(nbin + 1, n);
+mpobw = cell(nbin + 1, n);
 iG = zeros(nbin, nc1 + nc2);
 
-for j = 1:Nc
-    mpofw(j, 1, :) = mpo0{j};%careful with difference between { } and ( )
-    mpobw(j, 1, :) = mpotg{j};
-end
 
+mpofw(1, :) = mpo0;%careful with difference between { } and ( )
+mpobw(1, :) = mpotg;
 
 for k = 1:nbin %gate construction at _control_ bin step
     %defining the forward gates
@@ -93,10 +100,9 @@ for k = 1:nbin %gate construction at _control_ bin step
     
     
     %implementing the forward time evolution
-    for inv = 1:Nc %chooses invariant
         %forward propagation
-        mpofw(inv, k + 1, :) = mpofw(inv, k, :);
-        mpofw_temp = squeeze(mpofw(inv, :, :));%create temporary MPO with correct dimensions (no null dimension on inv variable)
+        mpofw(k + 1, :) = mpofw(k, :);
+        mpofw_temp = squeeze(mpofw(:, :));%create temporary MPO with correct dimensions (no null dimension on inv variable)
         for jt = 1:nt %fine-grained time steps
             %apply odd 2q terms
             for j = 1:2:n - 1
@@ -122,8 +128,7 @@ for k = 1:nbin %gate construction at _control_ bin step
             mpofw_temp(k + 1, :) = mpo_normalize(mpofw_temp(k + 1, :));
         end
         %update mpofw for each invariant
-        mpofw(inv, k + 1, :) = {mpofw_temp{k + 1, :}};
-    end    
+        mpofw(k + 1, :) = {mpofw_temp{k + 1, :}};    
     %end of forwards propagation
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -151,10 +156,10 @@ for k = 1:nbin %gate construction at _control_ bin step
         g1{j} = gate;
     end
     %implementing backwards time evolution
-    for inv = 1:Nc
+    
         %backwards propagation on temporary MPO
-        mpobw(inv, k + 1, :) = mpobw(inv, k, :);
-        mpobw_temp = squeeze(mpobw(inv, :, :));
+        mpobw(k + 1, :) = mpobw(k, :);
+        mpobw_temp = squeeze(mpobw(:, :));
         for jt = 1:nt %fine-grained time steps
             %apply 1 qubit terms
             for j = 1:n
@@ -179,18 +184,17 @@ for k = 1:nbin %gate construction at _control_ bin step
             mpobw_temp(k + 1, :) = mpo_normalize(mpobw_temp(k + 1, :));
         end
         %update mpobw for each invariant
-        mpobw(inv, k + 1, :) = {mpobw_temp{k + 1, :}};
+        mpobw(k + 1, :) = {mpobw_temp{k + 1, :}};
     end
-end
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %finding the gradient
-for inv = 1:Nc
     for k = 1:nbin
-        tnsfw_temp = squeeze(mpofw(inv, :, :));
+        tnsfw_temp = squeeze(mpofw(:, :));
         tnsfw_temp = tnsfw_temp(k + 1, :);
-        tnsbw_temp = squeeze(mpobw(inv, :, :));
+        tnsbw_temp = squeeze(mpobw(:, :));
         tnsbw_temp = tnsbw_temp(nbin - k + 1, :);
        
         
@@ -205,7 +209,7 @@ for inv = 1:Nc
                 ovl_diff_left = ovl_diff_left + mpo_overlap(tnsbw_temp, tnsfw_diff_left);
             end
             %adds all inv derivatives together for a given control Hamiltonian
-            iG(k, jc1) = iG(k, jc1) -2 * real(ovl_diff_left) / Nc;
+            iG(k, jc1) = 2 * real(ovl_diff_left);
         end
         %2 qubit control perturbations
         for jc2 = 1:nc2
@@ -219,19 +223,18 @@ for inv = 1:Nc
 
             ovl_diff_left = mpo_overlap(tnsbw_temp, tnsfw_diff_left);
 
-            iG(k, nc1 + jc2) = iG(k, nc1 + jc2) - 2 * real(ovl_diff_left) / Nc;
+            iG(k, nc1 + jc2) = 2 * real(ovl_diff_left);
         end
     end
-end
+
 
 %not set up for optimising time scale yet
 iGT = 0;
 iG = [iG(:); iGT];
 
-ovl = 0;
-for inv = 1:Nc
-    ovl = ovl + real(mpo_overlap(squeeze(mpofw(inv, nbin + 1, :)), mpotg{inv})) / Nc;
-end
-iF = 1 - ovl;
+ovl = real(mpo_overlap(squeeze(mpofw(nbin + 1, :)), mpotg));
+iF = ovl;
 
 end
+
+
