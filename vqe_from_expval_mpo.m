@@ -23,7 +23,7 @@ tebd_options_mps = tebd_options;
 
 
 %no. of qubits
-n = 8;
+n = 4;
 
 %make sure H1q is correctly setup (in the following way for 2qubit control)
 H1q = struct('sys', cell(2 * n, 1), 'op', cell(2 * n, 1));
@@ -60,6 +60,9 @@ observable_mpo = temp_mpos{1};
 for j = 2:length(temp_mpos)
     observable_mpo = mpo_add(temp_mpos{j}, observable_mpo);
 end
+
+
+
 
 
 %simulation parameters
@@ -128,3 +131,5 @@ x_optm = fmincon(fun, x_optm, A, b, Aeq, beq, lb, ub, nonlcon, options);
 expval_optm = fun(x_optm);
 
 fprintf('Expectation value: %d', expval_optm * observable_norm);
+
+writematrix(x_optm, "vqe_n=4_.csv")

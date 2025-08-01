@@ -1,0 +1,20 @@
+function pauli_strings = nonlocal_2body_strings(n, P1, P2)
+
+
+
+comb = combinations(1:n, 1:n);
+labels = cell(1, (n - 1)^2);
+
+count = 0;
+for j = 1:n^2
+    if comb.(1)(j) ~= comb.(2)(j)
+        labels{j - count} = [comb.(1)(j) comb.(2)(j)];
+    else
+        count = count + 1;
+    end
+end
+
+pauli_strings = cell(1, length(labels));
+for j = 1:length(labels)
+    p_str = repmat('I', 1, n);
+    pauli_strings{j} = [repmat('I', 1, )];

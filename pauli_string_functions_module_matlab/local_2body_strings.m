@@ -3,7 +3,7 @@ function pauli_strings = local_2body_strings(n, local_2body_int)
 
 %eg; local_2body_strings(5, 'XY') = {'XYIII', 'IXYII', 'IIXYI', 'IIIXY'}
 
-pauli_strings = {1, n - 1};
+pauli_strings = cell(1, n - 1);
 for j = 1:n - 1
     pauli_strings{j} = pauli_string_at_qubit_position(n, local_2body_int, j);
 end

@@ -85,12 +85,6 @@ tebd_options.bond_dim = Inf;
 tebd_options_mps = tebd_options;
 tebd_options_mps.bond_comp = 100;
 
-%define control Hamiltonian; H(t) = \sum_j fj Xj + cj ZjZj+1
-
-%MAKING UNIVERSAL CONTROL {X, Z, ZZ} --> still 10% infidelity?
-%also SOMETIMES (33%) gives an error on mpo_overlap (Specified dims of the
-%input arrays must have the same size) from infid_2q gradient calculation
-
 %2 qubit terms
 H2q = cell(1, n - 1); %different structure for some reason? based on example
 for j = 1:n - 1
@@ -169,22 +163,4 @@ x_optm = fmincon(fun, x_optm, A, b, Aeq, beq, lb, ub, nonlcon, options);
 iF_optm = fun(x_optm);
 fprintf('Operator infidelity %d\n', iF_optm);
 
-%
-%post-optimisation - extracting the optimal control coefficients 
-T_optm = x_optm(end);
-c = x_optm(1:end - 1);
-c = reshape(c, [bin_num, ctrl_num]);
-c1q_binned = c(:, 1:n);
-c2q_binned = c(:, n + 1:2 * n - 1);
-
-%saving control data
-run = 1;
-writematrix(c1q_binned, "c1q_binned_run_" + run + ".txt")
-writematrix(c2q_binned, "c2q_binned_run_" + run + ".txt")
-
-
-dt = 0.1;
-time_steps = round(T_optm / dt);
-times = linspace(0, T_optm, time_steps);
-
-
+%writematrix(x_optm, "... .csv")
