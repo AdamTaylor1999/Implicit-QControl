@@ -32,7 +32,7 @@ function operator_strings = pauli_strings_to_mpo(n, pauli_strings, weights)
         pauli_str = pauli_strings{k};
         hcell = cell(1, n);
         for j = 1:n
-            op = weights(k) * pauli_dict(pauli_str(j));  %weighted the operator
+            op = (weights(k))^(1/n) * pauli_dict(pauli_str(j));  %weighted the operator
             hcell{j} = reshape(op, [1, 2, 2, 1]); % MPO format: [left, physical_in, physical_out, right]
         end
         operator_strings{k} = hcell_to_mpo(hcell); 

@@ -46,15 +46,32 @@ end
 psi0 = computational_state_to_mpo(zeros(1, n));
 psi0 = mpo_normalize(mpo_compress(psi0, sv_min, Dc, 2));
 
-%observable - crushed (?) Ising model from Mode's paper; \sumj Zj + \sum_k Xk
-%Xk+1 + X1 + Xn
+
+%observable - crushed Ising model 
+% (\sumj Zj) + (\sum_k Xk Xk+1) + X1 + Xn
 X1 = ['X' repmat('I', 1, n - 1)];
 Xn = [repmat('I', 1, n - 1) 'X'];
 
 observable_terms = [all_single_operator_strings(n, 'Z') X1 Xn local_2body_strings(n, 'XX')];
-observable_norm = sqrt(length(observable_terms) * 2^n);
 observable_weights = ones(length(observable_terms));
 
+
+%observable - shortest vector style long-ranged ZZ
+% (\sum_j Zj) + (\sum_j \sum_k~=j ZjZk)
+observable_terms = [all_single_operator_strings(n, 'Z') nonlocal_2body_strings(n, 'Z', 'Z')];
+observable_weights = [0.32547792479077287 1.4269790761690317 1.8885010855757431 ...
+        0.8412581291193849 2.724066694375117 1.7834334919673296 0.5661473949021019 ...
+        1.8471493437650164 1.8094761724022477 2.404681849201431];
+
+
+%Hilbert-Schmidt norm
+observable_norm = 0;
+for j = 1:length(observable_terms)
+    observable_norm = observable_norm + abs(observable_weights(j))^2;
+end
+observable_norm = sqrt(observable_norm * 2^n);
+
+%summing MPOs
 temp_mpos = pauli_strings_to_mpo(n, observable_terms, observable_weights);
 observable_mpo = temp_mpos{1};
 for j = 2:length(temp_mpos)
@@ -63,21 +80,19 @@ end
 
 
 
-
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %simulation parameters
+T = 2 * pi;
+bin_num = 10;
+
 dt = 0.01;
-T = pi;
-ctrl_lb = -5; %for uniform constraints on the largest control pulses
-ctrl_ub = 5;
 time_steps = round(T / dt);
 times = linspace(0, T, time_steps);
 
-bin_factor = 5;
-bin_num = n * bin_factor;
-bin_num = 10;
-varT = 0; %when varT set to 1 (off), this no longer takes any steps!
-%idk why! FKKK
+ctrl_lb = -5; %for uniform constraints on the largest control pulses
+ctrl_ub = 5;
+varT = 0; %when varT set to 1 (off), no longer optimises?
+
 
 %optimisation options (no constaints but need nloncon)
 expval_target = -Inf;
@@ -118,7 +133,7 @@ parfor jtry = 1:Ntry
 end
 
 [expval_min, jmin] = min(expvalL);
-x_optm = xL{jmin};%why is length(x_optm) different to length(x0)
+x_optm = xL{jmin};
 
 
 %choose most promising initial state
