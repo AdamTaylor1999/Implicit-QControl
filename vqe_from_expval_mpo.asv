@@ -15,15 +15,15 @@ sx = [0 1; 1 0];
 sy = [0 -1i; 1i 0];
 sz = [1 0; 0 -1];
 tebd_options = tebd_default_options;
-tebd_options.bond_dim = Inf;
-tebd_options.bond_comp = Inf;
+tebd_options.bond_dim = 50;
+tebd_options.bond_comp = 50;
 sv_min = tebd_options.sv_min;
 Dc = tebd_options.bond_comp;
 tebd_options_mps = tebd_options;
 
 
 %no. of qubits
-n = 4;
+n = 10;
 
 %make sure H1q is correctly setup (in the following way )
 H1q = struct('sys', cell(2 * n, 1), 'op', cell(2 * n, 1));
@@ -56,17 +56,17 @@ psi0 = mpo_normalize(mpo_compress(psi0, sv_min, Dc, 2));
 
 %observable - shortest vector style long-ranged ZZ
 % (\sum_j Zj) + (\sum_j \sum_k~=j ZjZk)
-%observable_terms = [all_single_operator_strings(n, 'Z') nonlocal_2body_strings(n, 'Z', 'Z')];
-%observable_weights = [1.2726607535749053,
-% 2.8425411954266906,
-% 3.3811184363222577,
-% 3.367651536169671,
-% 1.341929072147563,
-% 0.015628759868175024,
-% 3.7315852823485676,
-% 2.64150493595804,
-% 0.3382182222301475,
-% 3.9002772705578534];
+observable_terms = [all_single_operator_strings(n, 'Z') nonlocal_2body_strings(n, 'Z', 'Z')];
+observable_weights = [1.2726607535749053,
+ 2.8425411954266906,
+ 3.3811184363222577,
+ 3.367651536169671,
+ 1.341929072147563,
+ 0.015628759868175024,
+ 3.7315852823485676,
+ 2.64150493595804,
+ 0.3382182222301475,
+ 3.9002772705578534];
 
 %observable - Heisenberg model at criticality (highly entangled GS)
 % \sum_j XjXj+1 + YjYj+1 + ZjZj+1
@@ -93,8 +93,8 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %simulation parameters
-T = 2 * pi;
-bin_num = 10;
+T = 6 * pi;
+bin_num = 50;
     
 dt = 0.001;
 time_steps = round(T / dt);

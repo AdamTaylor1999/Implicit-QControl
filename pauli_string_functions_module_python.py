@@ -10,6 +10,8 @@ import numpy as np
 from qutip import *
 import itertools
 import random
+from scipy.sparse.linalg import eigsh
+
 
 def ran(scale = 1, how_many = 1):
     #Random number generator. Randomly selects how_many numbers from a uniform distribution on (0, scale).
@@ -205,6 +207,28 @@ def operator_string_from_Pauli_string(Pauli_string):
         raise ValueError('Pauli_string is not a string consisting of I, X, Y and/or Z!')
     return tensor(operator)
 
+def operator_strings_from_Pauli_strings(Pauli_strings, weights = 1, summed = False):
+    #Given a tuple of Pauli strings, returns a tuple of QuTiP operators. If weights != 1, then each Pauli string is weighted. If sum = True, then
+    #this sums all the operators together (eg; to form a Hamiltonian)
+    #eg; operator_strings_from_Pauli_strings(('IX', 'IY', 'IZ')) = (IX, IY, IZ)
+    #    operator_strings_from_Pauli_srings(('IX', 'IY', 'IZ'), (0.1, -5, 2.2)) = (0.1 IX, -5 IY, 2.2 IZ)
+    #    operator_strings_from_Pauli_srings(('IX', 'IY', 'IZ'), (0.1, -5, 2.2), summed = True) = 0.1 IX -5 IY + 2.2 IZ
+    if weights == 1:
+        weights = np.ones(len(Pauli_strings))
+    else:
+        if len(weights) != len(Pauli_strings):
+            raise ValueError('Number of weights does not match number of Pauli strings!')
+    operators = []
+    for i in range(len(Pauli_strings)):
+        operators.append(weights[i] * operator_string_from_Pauli_string(Pauli_strings[i]))
+    if summed == False:
+        return tuple(operators)
+    else:
+        summed_operator = 0
+        for i in range(len(Pauli_strings)):
+            summed_operator += operators[i]
+        return summed_operator
+
 def operator_Pauli_decomposition(n_qubits, Pauli_strings, target_operator):
     #Returns the decomposition of the target operator over the set of Pauli strings listed
     coefficients = np.zeros(len(Pauli_strings), dtype = complex)
@@ -217,4 +241,47 @@ def operator_Pauli_decomposition(n_qubits, Pauli_strings, target_operator):
         overlap += abs(coefficients[i])**2
     overlap = 2**(n_qubits) * overlap / (target_operator.dag() * target_operator).tr()
     return coefficients, overlap
+
+
+def ground_state_energy(n, Hamiltonian):
+    #Returns the ground state and associated energy of a given sparse QuTiP Hamiltonian
+    #Uses the Lanzcos algorithm and is significantly more efficient than QuTiPs groundstate() function
+    H_sparse = Hamiltonian.data
+    E0, psi0 = eigsh(H_sparse, k = 1, which = 'SA')
+    psi0 = Qobj(psi0[:, 0])
+    psi0.dims = [[2] * n, [1] * n]
+    return E0[0], psi0
+
+
+def binned_pulses_from_x_optm_1q(n, num_bins, x_optm, conjugated = True):
+    #Takes x_optm from the MATLAB code for the single qubit control terms Xj, Yj
+    #and converts it into the binned pulses coefficients for each X and Y
+    cX_binned, cY_binned = np.zeros([n, num_bins]), np.zeros([n, num_bins])
+    for i in range(n):
+        for j in range(num_bins):
+            cX_binned[i, j] = x_optm[num_bins * (2 * i) + j]
+            cY_binned[i, j] = x_optm[num_bins * (2 * i + 1) + j]
+        if conjugated:
+            cX_binned[i] = -np.flip(cX_binned[i])
+            cY_binned[i] = -np.flip(cY_binned[i])
+    return cX_binned, cY_binned
+
+def continuous_time_pulses_from_x_optm_1q(n, num_bins, times, x_optm, conjugated = True):
+    #Takes x_optm from the MATLAB code for the single qubit control terms Xj, Yj
+    #and converts it into the pulse coefficients over the times for each X and Y.
+    #Make sure that times = np.linspace(0, T_optm, time_steps)
+    cX_binned, cY_binned = binned_pulses_from_x_optm(n, num_bins, x_optm, conjugated = conjugated)
+    time_steps = len(times)
+    Dt = times[-1] / num_bins
+    cX, cY = np.zeros([n, time_steps]), np.zeros([n, time_steps])
+    for i in range(n):
+        count = 1
+        for j in range(time_steps):
+            if times[j] > count * Dt and count * Dt < times[-1]:
+                count += 1
+            cX[i, j] = cX_binned[i, count - 1]
+            cY[i, j] = cY_binned[i, count - 1]
+    return cX, cY
+
+
 

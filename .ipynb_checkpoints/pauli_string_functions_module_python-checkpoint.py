@@ -205,6 +205,28 @@ def operator_string_from_Pauli_string(Pauli_string):
         raise ValueError('Pauli_string is not a string consisting of I, X, Y and/or Z!')
     return tensor(operator)
 
+def operator_strings_from_Pauli_strings(Pauli_strings, weights = 1, summed = False):
+    #Given a tuple of Pauli strings, returns a tuple of QuTiP operators. If weights != 1, then each Pauli string is weighted. If sum = True, then this sums all the operators together (eg; to form a Hamiltonian
+    #eg; operator_strings_from_Pauli_strings(('IX', 'IY', 'IZ')) = (IX, IY, IZ)
+    #    operator_strings_from_Pauli_srings(('IX', 'IY', 'IZ'), (0.1, -5, 2.2)) = (0.1 IX, -5 IY, 2.2 IZ)
+    #    operator_strings_from_Pauli_srings(('IX', 'IY', 'IZ'), (0.1, -5, 2.2), summed = True) = 0.1 IX -5 IY + 2.2 IZ
+
+    if weights == 1:
+        weights = np.ones(length(Pauli_strings))
+    else:
+        if len(weights) != len(Pauli_strings):
+            raise ValueError('Number of weights does not match number of Pauli strings!')
+    operators = []
+    for i in range(len(Pauli_strings)):
+        operators.append(weights[i] * operator_string_from_Pauli_string(Pauli_strings[i]))
+    if summed == False:
+        return tuple(operators)
+    else:
+        summed_operator = 0
+        for i in range(len(Pauli_strings)):
+            summed_operator += operator[i]
+        return summed_operator
+
 def operator_Pauli_decomposition(n_qubits, Pauli_strings, target_operator):
     #Returns the decomposition of the target operator over the set of Pauli strings listed
     coefficients = np.zeros(len(Pauli_strings), dtype = complex)

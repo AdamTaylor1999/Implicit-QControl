@@ -127,7 +127,12 @@ duration_factor=pi;
 T0=n*duration_factor; 
 bin_num=n*bin_factor;
 varT=1; %whether to optimize the duration
+
+
 fun=@(x) infid(H2q,Hc,x,mpo0,mpo_adb_target,varT,tebd_options);
+
+
+
 %optimization options
 iF_target=10^(-3);
 A=[];
