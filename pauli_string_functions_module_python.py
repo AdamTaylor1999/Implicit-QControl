@@ -243,6 +243,9 @@ def operator_Pauli_decomposition(n_qubits, Pauli_strings, target_operator):
     return coefficients, overlap
 
 
+
+
+#Most efficient ground state finder
 def ground_state_energy(n, Hamiltonian):
     #Returns the ground state and associated energy of a given sparse QuTiP Hamiltonian
     #Uses the Lanzcos algorithm and is significantly more efficient than QuTiPs groundstate() function
@@ -253,9 +256,15 @@ def ground_state_energy(n, Hamiltonian):
     return E0[0], psi0
 
 
-def binned_pulses_from_x_optm_1q(n, num_bins, x_optm, conjugated = True):
+
+
+
+#Extracting optimal pulse sequences from MATLAB code for QuTIP simulation of dynamics.
+def XY_binned_pulses_from_x_optm_1q(n, num_bins, x_optm, conjugated = True):
     #Takes x_optm from the MATLAB code for the single qubit control terms Xj, Yj
-    #and converts it into the binned pulses coefficients for each X and Y
+    #and converts it into the binned pulses coefficients for each X and Y.
+    if len(x_optm) != 2 * n * num_bins:
+        raise ValueError('Size of x_optm does not correspond with n and num_bins! Make sure x_optm has had total duration removed!')
     cX_binned, cY_binned = np.zeros([n, num_bins]), np.zeros([n, num_bins])
     for i in range(n):
         for j in range(num_bins):
@@ -266,11 +275,11 @@ def binned_pulses_from_x_optm_1q(n, num_bins, x_optm, conjugated = True):
             cY_binned[i] = -np.flip(cY_binned[i])
     return cX_binned, cY_binned
 
-def continuous_time_pulses_from_x_optm_1q(n, num_bins, times, x_optm, conjugated = True):
+def XY_continuous_time_pulses_from_x_optm_1q(n, num_bins, times, x_optm, conjugated = True):
     #Takes x_optm from the MATLAB code for the single qubit control terms Xj, Yj
     #and converts it into the pulse coefficients over the times for each X and Y.
     #Make sure that times = np.linspace(0, T_optm, time_steps)
-    cX_binned, cY_binned = binned_pulses_from_x_optm(n, num_bins, x_optm, conjugated = conjugated)
+    cX_binned, cY_binned = XY_binned_pulses_from_x_optm_1q(n, num_bins, x_optm, conjugated = conjugated)
     time_steps = len(times)
     Dt = times[-1] / num_bins
     cX, cY = np.zeros([n, time_steps]), np.zeros([n, time_steps])
@@ -283,5 +292,57 @@ def continuous_time_pulses_from_x_optm_1q(n, num_bins, times, x_optm, conjugated
             cY[i, j] = cY_binned[i, count - 1]
     return cX, cY
 
+def XY_control_Hamiltonian(n, cX, cY):
+    #Takes continuous-time cX and cY and returns the control Hamiltonian in the form for qutip.mesolve()
+    #We are still need to add any two qubit gates or native gates.
+    if len(cX) != n or len(cY) != n or shape(cX) != shape(cY):
+        raise ValueError('cX and/or cY are the wrong shape!')
+    
+    H_control_terms = tuple(list(all_single_operator_strings(n, 'X')) + list(all_single_operator_strings(n, 'Y')))
+    H_control_ops = operator_strings_from_Pauli_strings(H_control_terms)
+    H_control = []
+    for i in range(n):
+        H_control.append([H_control_ops[i], cX[i]])
+        H_control.append([H_control_ops[i + n], cY[i]])
+    return H_control
 
+def ZZ_binned_pulses_from_x_optm_2q(n, num_bins, x_optm, conjugated = True):
+    if len(x_optm) != (n - 1) * num_bins:
+        raise ValueError('Size of x_optm does not correspond with n and num_bins!')
+    cZZ_binned = np.zeros([n - 1, num_bins])
+    for i in range(n - 1):
+        for j in range(num_bins):
+            cZZ_binned[i, j] = x_optm[num_bins * i + j]
+        if conjugated:
+            cZZ_binned[i] = -np.flip(cZZ_binned[i])    
+    return cZZ_binned
+
+def ZZ_continuous_time_pulses_from_x_optm_2q(n, num_bins, times, x_optm, conjugated = True):
+    cZZ_binned = ZZ_binned_pulses_from_x_optm_2q(n, num_bins, x_optm, conjugated = conjugated)
+    time_steps = len(times)
+    Dt = times[-1] / num_bins
+    cZZ = np.zeros([n - 1, time_steps])
+    for i in range(n - 1):
+        count = 1
+        for j in range(time_steps):
+            if times[j] > count * Dt and count * Dt < times[-1]:
+                count += 1
+            cZZ[i, j] = cZZ_binned[i, count - 1]
+    return cZZ
+
+def ZZ_control_Hamiltonian(n, cZZ):
+    if len(cZZ) != n - 1:
+        raise ValueError('cZZ is the wrong shape!')
+    H_control_terms = local_2body_strings(n, 'ZZ')
+    H_control_ops = operator_strings_from_Pauli_strings(H_control_terms)
+    H_control = []
+    for i in range(n - 1):
+        H_control.append([H_control_ops[i], cZZ[i]])
+    return H_control
+    
+    
+    
+    
+    
+    
 

@@ -15,15 +15,15 @@ sx = [0 1; 1 0];
 sy = [0 -1i; 1i 0];
 sz = [1 0; 0 -1];
 tebd_options = tebd_default_options;
-tebd_options.bond_dim = Inf;
-tebd_options.bond_comp = Inf;
+tebd_options.bond_dim = 40;
+tebd_options.bond_comp = 40;
 sv_min = tebd_options.sv_min;
 Dc = tebd_options.bond_comp;
 tebd_options_mps = tebd_options;
 
 
 %no. of qubits
-n = 4;
+n = 10;
 
 %make sure H1q is correctly setup (in the following way )
 H1q = struct('sys', cell(2 * n, 1), 'op', cell(2 * n, 1));
@@ -49,29 +49,74 @@ psi0 = mpo_normalize(mpo_compress(psi0, sv_min, Dc, 2));
 
 %observable - crushed Ising model 
 % (\sumj Zj) + (\sum_k Xk Xk+1) + X1 + Xn
-%X1 = ['X' repmat('I', 1, n - 1)];
-%Xn = [repmat('I', 1, n - 1) 'X'];
-%observable_terms = [all_single_operator_strings(n, 'Z') X1 Xn local_2body_strings(n, 'XX')];
-%observable_weights = ones(length(observable_terms));
+% X1 = ['X' repmat('I', 1, n - 1)];
+% Xn = [repmat('I', 1, n - 1) 'X'];
+% observable_terms = [all_single_operator_strings(n, 'Z') X1 Xn local_2body_strings(n, 'XX')];
+% observable_weights = ones(length(observable_terms));
 
 %observable - shortest vector style long-ranged ZZ
 % (\sum_j Zj) + (\sum_j \sum_k~=j ZjZk)
-%observable_terms = [all_single_operator_strings(n, 'Z') nonlocal_2body_strings(n, 'Z', 'Z')];
-%observable_weights = [1.2726607535749053,
-% 2.8425411954266906,
-% 3.3811184363222577,
-% 3.367651536169671,
-% 1.341929072147563,
-% 0.015628759868175024,
-% 3.7315852823485676,
-% 2.64150493595804,
-% 0.3382182222301475,
-% 3.9002772705578534];
+ observable_terms = [all_single_operator_strings(n, 'Z') nonlocal_2body_strings(n, 'Z', 'Z')];
+ observable_weights = [1.1936187224736132,
+ 3.942825143869964,
+ 3.6444516935156717,
+ 4.7924115711654105,
+ 1.6379460719285204,
+ 2.987007872098033,
+ 4.625704903118575,
+ 3.6385001168980953,
+ 1.573522320013755,
+ 0.139197506979587,
+ 2.8203807481050003,
+ 4.7385461744266495,
+ 3.9414186597085665,
+ 1.1470288101844017,
+ 4.645067306076715,
+ 3.650233413855497,
+ 4.367913839287504,
+ 4.9118091882909924,
+ 1.2590291636070035,
+ 2.2845950442155853,
+ 3.668678878572287,
+ 1.5456911234957889,
+ 1.6979930999985422,
+ 3.3754463529892496,
+ 4.556308027300372,
+ 1.1651963864263122,
+ 4.112484070760469,
+ 4.650565980053052,
+ 2.0214625070401047,
+ 3.6740895399130276,
+ 1.0343769942154202,
+ 2.27824051442235,
+ 0.8147232044255909,
+ 2.082441854259157,
+ 4.000397248674186,
+ 4.054545366338213,
+ 3.123007478477453,
+ 0.8871699028963204,
+ 4.593817444629671,
+ 2.8444035537849084,
+ 4.63911019539531,
+ 0.22095250449073123,
+ 3.5321701099412577,
+ 2.126535044880434,
+ 3.515545287340134,
+ 3.713074499360987,
+ 1.871845269181085,
+ 4.504410332691487,
+ 3.2915313987321064,
+ 3.469092312581874,
+ 2.539319103121453,
+ 1.9965462822785613,
+ 3.1546998198967096,
+ 1.0399826111302208,
+ 0.8996954811401109];
 
 %observable - Heisenberg model at criticality (highly entangled GS)
 % \sum_j XjXj+1 + YjYj+1 + ZjZj+1
-observable_terms = [local_2body_strings(n, 'XX') local_2body_strings(n, 'YY') local_2body_strings(n, 'ZZ')];
-observable_weights = ones(length(observable_terms));
+%observable_terms = [local_2body_strings(n, 'XX') local_2body_strings(n, 'YY') local_2body_strings(n, 'ZZ')];
+%observable_weights = ones(length(observable_terms));
 
 
 
@@ -93,7 +138,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %simulation parameters
-T = 2 * pi;
+T = 4 * pi;
 bin_num = 10;
     
 dt = 0.001;
@@ -162,3 +207,15 @@ expval_optm = fun(x_optm);
 fprintf('Expectation value: %d', expval_optm * observable_norm);
 
 %writematrix(x_optm, "heis_n=4_bin=1.csv")
+%%
+% why is this not fking working!!!
+%x_optm_py = [ 0.17686671,  0.08839826,  0.06544213,  0.23551391, -0.09255747,...
+%       -0.07200062, -0.18091324, -0.23299775,  0.21637721,  0.24563825,...
+%        0.15802555,  0.072183  , -0.27337751, -0.24380614, -0.21329594,...
+%        0.01071987, 6.36462444991919];
+
+%[obs_exp_val, gradienty] = expval_vqe(H2q, H1q, x_optm_py, observable_mpo, psi0, varT, tebd_options);
+%different!!! obs_exp_val different to the final expecation value
+%(-5.24999)
+
+
